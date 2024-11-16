@@ -8,6 +8,7 @@ def parse_whatsapp_txt(file_path):
     Parse WhatsApp exported .txt file to extract messages and media references.
     """
     messages = []
+    chat_participants = []
 
     # Regex to match WhatsApp message format
     message_pattern = re.compile(r"(?m)^\[\d{1,2}/\d{1,2}/\d{4} BE, \d{2}:\d{2}:\d{2}\] .*?(?=(?:^\[\d{1,2}/\d{1,2}/\d{4} BE, \d{2}:\d{2}:\d{2}\])|$)")
@@ -37,6 +38,9 @@ def parse_whatsapp_txt(file_path):
                     "content": message.strip()
                 })
 
+                if sender not in chat_participants:
+                    chat_participants.append(sender)
+
     # with open(file_path, 'r', encoding='utf-8') as f:
     #     for line in f:
     #         match = message_pattern.match(line)
@@ -54,7 +58,7 @@ def parse_whatsapp_txt(file_path):
     #                 "content": content.strip()
     #             })
 
-    return messages
+    return messages, chat_participants
 
 def convert_opus_to_mp3(opus_file, output_folder):
     """
@@ -72,7 +76,7 @@ def convert_opus_to_mp3(opus_file, output_folder):
 
     return mp3_file
 
-def convert_to_html(messages, media_folder):
+def convert_to_html(messages, media_folder, participant1, participant2):
     """
     Convert parsed messages to HTML format.
     """
@@ -83,22 +87,37 @@ def convert_to_html(messages, media_folder):
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WhatsApp Chat Export</title>
     <style>
-        body { font-family: Arial, sans-serif; }
-        .message { margin-bottom: 10px; }
-        .timestamp { color: gray; font-size: 0.9em; }
-        .sender { font-weight: bold; }
-        img { max-width: 300px; height: auto; }
+        body { font-family: Arial, sans-serif; background-color: #e5ddd5; padding: 20px; }
+        .message { 
+            margin-bottom: 20px;
+            max-width: 65%;
+            min-width: 12%;
+            padding: 10px;
+            border-radius: 10px;
+            position: relative;
+        }
+        .message.left { background-color: #ffffff; align-self: flex-start; }
+        .message.right { background-color: #dcf8c6; align-self: flex-end; }
+        .timestamp.left { color: gray; font-size: 0.8em; position: absolute; bottom: -15px; left: 3px; }
+        .timestamp.right { color: gray; font-size: 0.8em; position: absolute; bottom: -15px; right: 3px; }
+        .sender { font-weight: bold; margin-bottom: 5px; }
+        img { max-width: 300px; height: auto; border: 1px solid #ccc; border-radius: 5px; }
         video { max-width: 300px; height: auto; }
         audio { width: 300px; }
+        .chat-container { display: flex; flex-direction: column; }
     </style>
 </head>
 <body>
 <h1>WhatsApp Chat Export</h1>
+<div class="chat-container">
 '''
 
+    previous_sender = None
     for msg in messages:
-        timestamp_html = f'<span class="timestamp">[{msg["timestamp"].strftime("%d/%m/%Y, %I:%M:%S %p")}]</span>'
-        sender_html = f'<span class="sender">{msg["sender"]}:</span>'
+        alignment_class = "left" if msg["sender"] == participant1 else "right"
+        previous_sender = msg["sender"]
+        timestamp_html = f'<span class="timestamp {alignment_class}">{msg["timestamp"].strftime("%d/%m/%Y, %I:%M:%S %p")}</span>'
+        sender_html = f'<div class="sender">{msg["sender"]}:</div>'
 
         # Check if the content is a media reference
         content_html = msg["content"]
@@ -119,9 +138,10 @@ def convert_to_html(messages, media_folder):
                 content_html = f'<a href="{os.path.join(media_folder, media_file)}" target="_blank">{media_file}</a>'
 
         # Add message to HTML
-        html_content += f'<div class="message">{timestamp_html} {sender_html} {content_html}</div>\n'
+        html_content += f'<div class="message {alignment_class}">{sender_html} {content_html} {timestamp_html}</div>\n'
 
     html_content += '''
+</div>
 </body>
 </html>
 '''
@@ -139,10 +159,10 @@ def main(data_folder):
     txt_file_path = os.path.join(data_folder, '_chat.txt')
 
     # Parse the WhatsApp .txt file
-    messages = parse_whatsapp_txt(txt_file_path)
+    messages, participants = parse_whatsapp_txt(txt_file_path)
 
     # Convert parsed data to HTML
-    html_content = convert_to_html(messages, data_folder)
+    html_content = convert_to_html(messages, data_folder, participants[0], participants[1])
 
     # Save the output HTML file
     output_file_path = txt_file_path.replace('.txt', '.html')
