@@ -10,15 +10,23 @@ def parse_whatsapp_txt(file_path):
     messages = []
 
     # Regex to match WhatsApp message format
-    message_pattern = re.compile(r"^\[(\d{1,2}/\d{1,2}/\d{4} BE), (\d{2}:\d{2}:\d{2})\] (.*?): (.*)$")
+    message_pattern = re.compile(r"(?m)^\[\d{1,2}/\d{1,2}/\d{4} BE, \d{2}:\d{2}:\d{2}\] .*?(?=(?:^\[\d{1,2}/\d{1,2}/\d{4} BE, \d{2}:\d{2}:\d{2}\])|$)")
+
+    # Regex to capture individual messages
+    message_regex = re.compile(
+        r'(\[\d{1,2}\/\d{1,2}\/\d{4} BE, \d{2}:\d{2}:\d{2}\]) (.*?): (.*?)(?=^\[\d{1,2}\/\d{1,2}\/\d{4} BE, \d{2}:\d{2}:\d{2}\]|$)'
+    )
 
     with open(file_path, 'r', encoding='utf-8') as f:
         for line in f:
-            match = message_pattern.match(line)
-            if match:
-                date_str, time_str, sender, content = match.groups()
+            # Parse the chat export
+            matches = message_regex.findall(line)
+
+            # Process and print the captured data
+            for match in matches:
+                timestamp, sender, message = match
                 # Convert Thai date format to US standard datetime format
-                date_str = date_str.replace(" BE", "")
+                date_str, time_str = timestamp.replace('[', '').replace(']', '').split(" BE, ")
                 date_obj = datetime.strptime(date_str, "%d/%m/%Y")
                 # Convert BE year to Gregorian year
                 date_obj = date_obj.replace(year=date_obj.year - 543)
@@ -26,8 +34,25 @@ def parse_whatsapp_txt(file_path):
                 messages.append({
                     "timestamp": timestamp,
                     "sender": sender,
-                    "content": content.strip()
+                    "content": message.strip()
                 })
+
+    # with open(file_path, 'r', encoding='utf-8') as f:
+    #     for line in f:
+    #         match = message_pattern.match(line)
+    #         if match:
+    #             date_str, time_str, sender, content = match.groups()
+    #             # Convert Thai date format to US standard datetime format
+    #             date_str = date_str.replace(" BE", "")
+    #             date_obj = datetime.strptime(date_str, "%d/%m/%Y")
+    #             # Convert BE year to Gregorian year
+    #             date_obj = date_obj.replace(year=date_obj.year - 543)
+    #             timestamp = datetime.strptime(f"{date_obj.strftime('%d/%m/%Y')} {time_str}", "%d/%m/%Y %H:%M:%S")
+    #             messages.append({
+    #                 "timestamp": timestamp,
+    #                 "sender": sender,
+    #                 "content": content.strip()
+    #             })
 
     return messages
 
@@ -79,7 +104,7 @@ def convert_to_html(messages, media_folder):
         content_html = msg["content"]
 
         # Process media files (images, videos, audio)
-        if content_html.startswith("<attached:"):
+        if "<attached:" in content_html:
             media_file = re.search(r"<attached: (.*?)>", content_html).group(1)
             if re.match(r".*\.(jpg|jpeg|png|gif|webp)$", media_file, re.IGNORECASE):
                 content_html = f'<img src="{os.path.join(media_folder, media_file)}" alt="Image">'
