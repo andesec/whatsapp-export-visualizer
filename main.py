@@ -3,24 +3,26 @@ import re
 import subprocess
 from datetime import datetime
 
-
 def parse_whatsapp_txt(file_path):
     """
     Parse WhatsApp exported .txt file to extract messages and media references.
     """
     messages = []
 
-    # message_pattern = re.compile(r"^\[(\d{2}/\d{2}/\d{4}), (\d{2}:\d{2})\] (.*?): (.*)$")
     # Regex to match WhatsApp message format
-    message_pattern = re.compile(r"^\[(\d{2}/\d{2}/\d{4} BE), (\d{2}:\d{2}:\d{2})\] (.*?): (.*)$")
+    message_pattern = re.compile(r"^\[(\d{1,2}/\d{1,2}/\d{4} BE), (\d{2}:\d{2}:\d{2})\] (.*?): (.*)$")
 
     with open(file_path, 'r', encoding='utf-8') as f:
         for line in f:
             match = message_pattern.match(line)
             if match:
                 date_str, time_str, sender, content = match.groups()
-                # timestamp = datetime.strptime(f"{date_str} {time_str}", "%d/%m/%Y %H:%M")
-                timestamp = datetime.strptime(f"{date_str} {time_str}", "%d/%m/%Y BE %H:%M:%S")
+                # Convert Thai date format to US standard datetime format
+                date_str = date_str.replace(" BE", "")
+                date_obj = datetime.strptime(date_str, "%d/%m/%Y")
+                # Convert BE year to Gregorian year
+                date_obj = date_obj.replace(year=date_obj.year - 543)
+                timestamp = datetime.strptime(f"{date_obj.strftime('%d/%m/%Y')} {time_str}", "%d/%m/%Y %H:%M:%S")
                 messages.append({
                     "timestamp": timestamp,
                     "sender": sender,
@@ -28,7 +30,6 @@ def parse_whatsapp_txt(file_path):
                 })
 
     return messages
-
 
 def convert_opus_to_mp3(opus_file, output_folder):
     """
@@ -45,7 +46,6 @@ def convert_opus_to_mp3(opus_file, output_folder):
             print(f"Error converting {opus_file}: {e}")
 
     return mp3_file
-
 
 def convert_to_html(messages, media_folder):
     """
@@ -72,22 +72,26 @@ def convert_to_html(messages, media_folder):
 '''
 
     for msg in messages:
-        timestamp_html = f'<span class="timestamp">[{msg["timestamp"].strftime("%d/%m/%Y, %H:%M")}]</span>'
+        timestamp_html = f'<span class="timestamp">[{msg["timestamp"].strftime("%d/%m/%Y, %I:%M:%S %p")}]</span>'
         sender_html = f'<span class="sender">{msg["sender"]}:</span>'
 
         # Check if the content is a media reference
         content_html = msg["content"]
 
         # Process media files (images, videos, audio)
-        if re.match(r".*\.(jpg|jpeg|png|gif)$", msg["content"], re.IGNORECASE):
-            content_html = f'<img src="{os.path.join(media_folder, msg["content"])}" alt="Image">'
-        elif re.match(r".*\.(mp4|mov|avi)$", msg["content"], re.IGNORECASE):
-            content_html = f'<video controls><source src="{os.path.join(media_folder, msg["content"])}" type="video/mp4">Your browser does not support the video tag.</video>'
-        elif re.match(r".*\.opus$", msg["content"], re.IGNORECASE):
-            # Convert OPUS to MP3 and embed it in HTML as an audio element
-            opus_path = os.path.join(media_folder, msg["content"])
-            mp3_path = convert_opus_to_mp3(opus_path, media_folder)
-            content_html = f'<audio controls><source src="{mp3_path}" type="audio/mpeg">Your browser does not support the audio element.</audio>'
+        if content_html.startswith("<attached:"):
+            media_file = re.search(r"<attached: (.*?)>", content_html).group(1)
+            if re.match(r".*\.(jpg|jpeg|png|gif|webp)$", media_file, re.IGNORECASE):
+                content_html = f'<img src="{os.path.join(media_folder, media_file)}" alt="Image">'
+            elif re.match(r".*\.(mp4|mov|avi)$", media_file, re.IGNORECASE):
+                content_html = f'<video controls><source src="{os.path.join(media_folder, media_file)}" type="video/mp4">Your browser does not support the video tag.</video>'
+            elif re.match(r".*\.opus$", media_file, re.IGNORECASE):
+                # Convert OPUS to MP3 and embed it in HTML as an audio element
+                opus_path = os.path.join(media_folder, media_file)
+                mp3_path = convert_opus_to_mp3(opus_path, media_folder)
+                content_html = f'<audio controls><source src="{mp3_path}" type="audio/mpeg">Your browser does not support the audio element.</audio>'
+            elif re.match(r".*\.(pdf)$", media_file, re.IGNORECASE):
+                content_html = f'<a href="{os.path.join(media_folder, media_file)}" target="_blank">{media_file}</a>'
 
         # Add message to HTML
         html_content += f'<div class="message">{timestamp_html} {sender_html} {content_html}</div>\n'
@@ -99,14 +103,12 @@ def convert_to_html(messages, media_folder):
 
     return html_content
 
-
 def save_html(output_path, html_content):
     """
     Save generated HTML content to a file.
     """
     with open(output_path, 'w', encoding='utf-8') as f:
         f.write(html_content)
-
 
 def main(data_folder):
     txt_file_path = os.path.join(data_folder, '_chat.txt')
@@ -122,7 +124,6 @@ def main(data_folder):
     save_html(output_file_path, html_content)
 
     print(f"HTML file saved at {output_file_path}")
-
 
 if __name__ == "__main__":
     # Example usage
