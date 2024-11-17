@@ -87,8 +87,9 @@ def convert_to_html(messages, media_folder, participant1, participant2):
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WhatsApp Chat Export</title>
     <style>
-        body { font-family: Arial, sans-serif; background-color: #e5ddd5; padding: 20px; }
-        .message { 
+        body { font-family: Arial, sans-serif; background-color: auto; padding: 20px; }
+        .container { margin: 0 auto; background-color: #e5ddd5; padding: 15px; }
+        .message {
             margin-bottom: 20px;
             max-width: 65%;
             min-width: 12%;
@@ -105,9 +106,20 @@ def convert_to_html(messages, media_folder, participant1, participant2):
         video { max-width: 300px; height: auto; }
         audio { width: 300px; }
         .chat-container { display: flex; flex-direction: column; }
+
+        @media (max-width: 768px) {
+            .container { width: 100%; }
+            .message { max-width: 90%; }
+            img, video, audio { max-width: 100%; }
+        }
+
+        @media (min-width: 769px) {
+            .container { width: 70%; }
+        }
     </style>
 </head>
 <body>
+<div class="container">
 <h1>WhatsApp Chat Export</h1>
 <div class="chat-container">
 '''
@@ -126,7 +138,7 @@ def convert_to_html(messages, media_folder, participant1, participant2):
         if "<attached:" in content_html:
             media_file = re.search(r"<attached: (.*?)>", content_html).group(1)
             if re.match(r".*\.(jpg|jpeg|png|gif|webp)$", media_file, re.IGNORECASE):
-                content_html = f'<img src="{os.path.join(media_folder, media_file)}" alt="Image">'
+                content_html = f'<a href="{os.path.join(media_folder, media_file)}" target="_blank"><img src="{os.path.join(media_folder, media_file)}" alt="Image"></a>'
             elif re.match(r".*\.(mp4|mov|avi)$", media_file, re.IGNORECASE):
                 content_html = f'<video controls><source src="{os.path.join(media_folder, media_file)}" type="video/mp4">Your browser does not support the video tag.</video>'
             elif re.match(r".*\.opus$", media_file, re.IGNORECASE):
@@ -141,6 +153,7 @@ def convert_to_html(messages, media_folder, participant1, participant2):
         html_content += f'<div class="message {alignment_class}">{sender_html} {content_html} {timestamp_html}</div>\n'
 
     html_content += '''
+</div>
 </div>
 </body>
 </html>
