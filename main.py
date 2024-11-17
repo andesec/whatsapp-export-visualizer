@@ -96,14 +96,15 @@ def convert_to_html(messages, media_folder, participant1, participant2):
             padding: 10px;
             border-radius: 10px;
             position: relative;
+            word-wrap: break-word;
         }
         .message.left { background-color: #ffffff; align-self: flex-start; }
         .message.right { background-color: #dcf8c6; align-self: flex-end; }
-        .timestamp.left { color: gray; font-size: 0.8em; position: absolute; bottom: -15px; left: 3px; }
-        .timestamp.right { color: gray; font-size: 0.8em; position: absolute; bottom: -15px; right: 3px; }
+        .timestamp.left { color: gray; font-size: 0.8em; position: absolute; bottom: -15px; left: 3px; white-space: nowrap; }
+        .timestamp.right { color: gray; font-size: 0.8em; position: absolute; bottom: -15px; right: 3px; white-space: nowrap; }
         .sender { font-weight: bold; margin-bottom: 5px; }
-        img { max-width: 300px; height: auto; border: 1px solid #ccc; border-radius: 5px; }
-        video { max-width: 300px; height: auto; }
+        img { max-height: 250px; height: auto; border: 1px solid #ccc; border-radius: 5px; }
+        video { max-height: 250px; height: auto; }
         audio { width: 300px; }
         .chat-container { display: flex; flex-direction: column; }
 
